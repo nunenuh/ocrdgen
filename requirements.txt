@@ -1,0 +1,4 @@
+pandas
+numpy
+si-prefix
+pillow
