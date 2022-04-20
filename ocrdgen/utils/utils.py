@@ -2,7 +2,7 @@ import random
 import numpy as np
 from typing import *
 from loguru import logger
-from .exception import PanicException
+from ..exception import PanicException
 
 SPACE_CHAR = " "
 
@@ -20,7 +20,7 @@ def probability(percent: float, low:float=0, high:float=1):
 def random_choice(items: list, size=1):
     choices = []
     for i in range(size):
-        n = random.randint(1, len(items))
+        n = np.random.randint(0, len(items))
         choices.append(items[n])
     if size == 1:
         return choices[0]
