@@ -1,2 +1,2 @@
-from .text import *
-from .word import *
+# from .text import *
+# from .word import *
