@@ -1,5 +1,6 @@
-from ocrdgen.manager.font import FontManager
-from ocrdgen.manager.background import BgManager
+import enum
+from ocrdgen.font.font import FontManager
+from ocrdgen.image.background import BgManager
 from pathlib import Path
 import numpy as np
 from PIL import ImageDraw, Image
@@ -7,103 +8,87 @@ from ocrdgen.ops import boxes_ops
 import cv2 as cv
 from collections import OrderedDict
 
+from .base import BaseDrawer
+from ocrdgen import models
 
-class DrawWord:
-    def __init__(self, image: np.ndarray, font, text, x, y, image_mode="RGBA", color=(0,0,0)):
-        self.image = image.copy()
-        self.font = font
-        self.text = text
-        self.x = x
-        self.y = y
-        self.color = color
-        self.idraw = ImageDraw.Draw(self.image)
-        self.image_mode = image_mode
+
+class WordDrawer(BaseDrawer):
+    def __init__(self, image: Image, font, text, xy, align="left", anchor=None,
+                 image_mode="RGBA", fill=(0,0,0)):
+        super().__init__(image=image, font=font, text=text, xy=xy,
+                         anchor=anchor, 
+                         align=align, image_mode=image_mode, fill=fill)
         
-    def image_size(self):
-        h,w = np.array(self.image).shape[:2]
-        return w,h
+        text_test = self.text.strip().split(" ")
+        # print(len(text_split), text_split)
+        assert len(text_test) == 1, f"Error, expected one word only, but more word is given!"
         
-    def textsize(self):
-        w, h = self.idraw.textsize(self.text, self.font)
-        return w,h
+    def draw_text(self, image=None):
+        if type(image) == type(None):
+            image = self.image.copy()
+        idraw = ImageDraw.Draw(image)
+        idraw.text(self.xy, self.text, font=self.font, fill=self.fill)
+        # idraw.textbbox()
+        return image
     
-    def position(self):
-        iw, ih = self.image_size()
-        tw, th = self.textsize()
-        w, h = (iw - tw) / 2, (ih - th) / 2
-        return w,h
-    
-    def draw(self, debug_draw=False, rcolor=(0,255,0,255), rthick=1):
-        self.idraw.text((self.x, self.y), self.text, font=self.font, fill=self.color)
-        if debug_draw:
-            image = self._draw_rectangle(color=rcolor, thick=rthick)
-            return image
+    def draw_bbox(self, image, color=(255,0,0,255), thick=1):
+        xmin, ymin, xmax, ymax = self.xymm_with_offset(self.text, self.x, self.y)
+        np_img = cv.rectangle(np.array(image), (xmin, ymin), (xmax, ymax), color, thick)
         
-        return self.image
+        return Image.fromarray(np_img)
     
-    def bbox(self):
-        xymm = self.xymm_bbox()
-        xywh = boxes_ops.xymm_to_xywh(xymm)
-        return xywh
+    def draw(self, image=None, draw_bbox=False, bbox_color=(255, 0, 0, 255), bbox_thick=1):
+        image = self.draw_text(image)
+        bbox = self.wordbbox()
+        if draw_bbox:
+            image = self.draw_bbox(image, color=bbox_color, thick=bbox_thick)
+        return image, bbox
     
-        
-    def char_bbox(self, otype=OrderedDict, debug_draw=False, color=(0,255,0,0), thick=1):
-        image = self.image.copy()
-        np_image = np.array(image)
-        
+    def wordbbox(self):
+        wordbox = models.WordBox(text=self.text, bbox=self.textbbox(), chars=self.charbbox())
+        return wordbox
+    
+    def charbbox(self):
         data = []
         xmin, ymin = self.x, self.y
         for i in range(len(self.text)):
             if len(self.text[i])>0:
-                tw, th = self.font.getsize(self.text[i])
-                ox, oy = self.font.getoffset(self.text[i])
-                xmax, ymax = xmin + tw, ymin + th
-                xminr, yminr = xmin + ox, ymin + oy
-                
-                if debug_draw: 
-                    # print(self.text[i],f'{i}-iter')
-                    image = Image.fromarray(np_image)
-                    draw = ImageDraw.Draw(image)
-                    draw.text((xmin,ymin), self.text[i], font=self.font, fill=self.color)
-                    np_image = cv.rectangle(np.array(image), (xminr, yminr), (xmax, ymax), color, thick)
-                    
-                    
-                xymm = [xminr, yminr, xmax, ymax]
+                xymm = self.xymm_with_offset(self.text[i], xmin, ymin)
                 xywh = boxes_ops.xymm_to_xywh(xymm)
-                points = boxes_ops.xywh_to_coord(xywh)
+                dt = models.CharBox(char=self.text[i], bbox=xywh, seq_id=i)
+                # dt = (self.text[i], xywh)
+                _, _, xmax, _ = xymm
                 xmin = xmax
-                if otype==OrderedDict:
-                    dt = OrderedDict({"char": self.text[i], "bbox": xywh})
-                else:
-                    dt = (self.text[i], xywh)
+                
                 data.append(dt)
                 
-        
-        return data, Image.fromarray(np_image)
+        return data
+    
+    def draw_char_text(self, image=None):
+        image = self.draw_text(image)
+        return image
+    
+    def draw_char_bbox(self, image, color=(0,255,0,255), thick=1):
+        image: np.ndarray = np.array(image)
+        charboxes = self.charbbox()
+        for idx, charbox in enumerate(charboxes):
+            char, xywh = charbox.char, charbox.bbox
+            xmin,ymin,xmax,ymax = boxes_ops.xywh_to_xymm(xywh)
+            if char!=" ":
+            # xmin, ymin, xmax, ymax = self.xymm_with_offset(char, x, y)
+                image = cv.rectangle(image, (xmin, ymin), (xmax, ymax), color, thick)
+            
+        image: Image = Image.fromarray(image)
+        return image
+    
+    def draw_char(self, image=None, draw_bbox=False, bbox_color=(0,255,0,255), bbox_thick=1):
+        image = self.draw_char_text(image)
+        bbox = self.charbbox()
+        if draw_bbox:
+            image = self.draw_char_bbox(image, color=bbox_color, thick=bbox_thick)
+        return image, bbox
+    
+
     
     
-    def _draw_rectangle(self, color=(0,255,0), thick=3):
-        xmin, ymin, xmax, ymax = self.xymm()
-        ox, oy = self.font.getoffset(self.text)
-        xminr, yminr = xmin + ox, ymin + oy
-        
-        # print(xmin, xminr, ymin, yminr)
-        np_img = cv.rectangle(np.array(self.image.copy()), (xminr, yminr), (xmax, ymax), color, thick)
-        
-        return Image.fromarray(np_img)
     
-    def xymm_bbox(self):
-        ox, oy = self.font.getoffset(self.text)
-        xmin, ymin, xmax, ymax = self.xymm()
-        xmin, ymin = xmin + ox, ymin + oy
-        return xmin, ymin, xmax, ymax
-        
-    def xywh(self):
-        w, h = self.textsize()
-        return self.x, self.y, w, h
-    
-    def xymm(self):
-        return boxes_ops.xywh_to_xymm(self.xywh())
-    
-    def coordinate(self):
-        return boxes_ops.xymm_to_coord(self.xywh())
