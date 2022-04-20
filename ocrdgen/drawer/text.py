@@ -1,118 +1,147 @@
-from ocrdgen.manager.font import FontManager
-from ocrdgen.manager.background import BgManager
+from ocrdgen.font.font import FontManager
+from ocrdgen.image.background import BgManager
 from pathlib import Path
 import numpy as np
 from PIL import ImageDraw, Image
 from ocrdgen.ops import boxes_ops
 import cv2 as cv
 from collections import OrderedDict
-from .word import DrawWord
+from .word import WordDrawer
+from .base import BaseDrawer
+from ocrdgen import models
 
 
-class DrawText:
-    def __init__(self, image: np.ndarray, font, text, label,  x, y, index=0, linking=[], delimiter=" ", image_mode="RGBA", color=(0,0,0)):
-        self.image = image.copy()
-        self.font = font
-        self.text = text
+
+class TextDrawer(BaseDrawer):
+    def __init__(self, image: np.ndarray, font, text, label, xy, anchor=None, index=0, linking=[], 
+                 delimiter=" ", align="left", image_mode="RGBA", fill=(0,0,0),
+                 *args, **kwargs):
+        super().__init__(image=image, font=font, text=text, xy=xy, 
+                         align=align, anchor=anchor, image_mode=image_mode, fill=fill)
         self.label = label
         self.index = index
         self.linking = linking
-        self.x = x
-        self.y = y
-        self.color = color
-        self.image_mode = image_mode
         self.delimiter = delimiter
-        self.idraw = ImageDraw.Draw(self.image)
-        
-    def image_size(self):
-        h,w = np.array(self.image).shape[:2]
-        return w,h
-        
-    def textsize(self):
-        w, h = self.idraw.textsize(self.text, self.font)
-        return w,h
-    
-    def position(self):
-        iw, ih = self.image_size()
-        tw, th = self.textsize()
-        w, h = (iw - tw) / 2, (ih - th) / 2
-        return w,h
     
     def delimiter_size(self):
         w, h = self.idraw.textsize(self.delimiter, self.font)
         return w,h
     
-    def _clean_split_text(self, text):
-        cleaned_text = []
-        text_split = text.split(self.delimiter)
-        for txt in text_split:
-            txt = txt.strip()
-            if len(txt)>0:
-                cleaned_text.append(txt)
-        text_split = cleaned_text
-        return text_split
-    
-    def _build_draw_word(self, word, x,y):
-        return DrawWord(image=self.image, font=self.font, 
-                        text=word, x=x,y=y, 
-                        image_mode=self.image_mode, 
-                        color=self.color)
-    
-    def draw(self, debug_draw=False):
-        words_data, image = self.draw_words(debug_draw=debug_draw)
-        data = OrderedDict({
-            "text": self.text, 
-            "bbox": self.bbox(), 
-            "linking": self.linking, 
-            "words": words_data,
-            "id": self.index
-        })
         
-        return data, image
-        
+    def _build_draw_word(self, word, xy):
+        return WordDrawer(image=self.image, font=self.font, 
+                          text=word, xy=xy, 
+                          anchor=self.anchor,
+                          image_mode=self.image_mode, 
+                          fill=self.fill)
     
-    def draw_words(self, debug_draw=False):
-        text_list = self._clean_split_text(self.text)
-        
-        dw, dh = self.delimiter_size()
-        x, y = self.x, self.y
-        
-        data = []
-        for idx, txt in enumerate(text_list):
-            dword = self._build_draw_word(txt, x=x, y=y)
-            tw, th = dword.textsize()
-            self.image = dword.draw(debug_draw=debug_draw)
-            bbox = dword.bbox()
-            char_bbox, _ = dword.char_bbox(debug_draw=debug_draw)
-            odt = OrderedDict({"word":txt, "bbox":bbox, "chars":char_bbox, "sequence_idx": idx })
-            data.append(odt)
-            
-            x = x + tw + dw
-            
-            
-        return data, self.image 
-    
-    
-    def bbox(self):
-        xymm = self.xymm_bbox()
+    def custom_bbox(self):
+        xywh = self.bbox()
+        xmin, ymin, xmax, ymax = boxes_ops.xywh_to_xymm(xywh)
+        ymax = self.textbbox()[3] 
+        xymm = xmin,ymin,xmax,ymax
         xywh = boxes_ops.xymm_to_xywh(xymm)
         return xywh
     
-    def xymm_bbox(self):
-        ox, oy = self.font.getoffset(self.text)
-        xmin, ymin, xmax, ymax = self.xymm()
-        xmin, ymin = xmin + ox, ymin + oy
-        return xmin, ymin, xmax, ymax
-        
-    def xywh(self):
-        w, h = self.textsize()
-        return self.x, self.y, w, h
-    
-    def xymm(self):
-        return boxes_ops.xywh_to_xymm(self.xywh())
-    
-    def coordinate(self):
-        return boxes_ops.xymm_to_coord(self.xywh())
+    def draw_words_text(self, image, text, xy, label=None, line=0, draw_wordbbox=False, draw_charbbox=True):
+        text = self._multiwords_split(text)
+            
+        dw, dh = self.delimiter_size()
+        x, y = xy
+        data = []
+        for idx, txt in enumerate(text):
+            
+            dword: WordDrawer = self._build_draw_word(txt, (x,y))
+            
+            tw, th = dword.textsize()
+            image, word_bbox = dword.draw(image, draw_bbox=draw_wordbbox)
+            image, char_bbox  = dword.draw_char(image, draw_bbox=draw_charbbox)
+            
+            word_bbox.seq_id = idx
+            word_bbox.line = line
+            word_bbox.label = label
+            
+            data.append(word_bbox)
 
+            x = x + tw + dw
+
+        return data, image
+    
+    def draw_words_bbox(self, text, xy, label=None, line=0):
+        text = self._multiwords_split(text)
             
+        dw, dh = self.delimiter_size()
+        x, y = xy
+        data = []
+        for idx, txt in enumerate(text):
             
+            dword: WordDrawer = self._build_draw_word(txt, (x,y))
+            
+            tw, th = dword.textsize()
+            word_bbox = dword.wordbbox()
+            
+            word_bbox.seq_id = idx
+            word_bbox.line = line
+            word_bbox.label = label
+            
+            data.append(word_bbox)
+    
+            x = x + tw + dw
+            
+        return data
+    
+    def draw_bbox(self, image, color=(0,0,255,255), thick=1):
+        xywh = self.custom_bbox()
+        xmin, ymin, xmax, ymax = boxes_ops.xywh_to_xymm(xywh)
+        np_img = cv.rectangle(np.array(image.copy()), (int(xmin), int(ymin)), (int(xmax), int(ymax)), color, thick)
+        
+        return Image.fromarray(np_img)
+    
+    def draw_text(self, draw_bbox=False, draw_wordbbox=False, draw_charbbox=False):
+        image = self.image.copy()
+        datas = []
+        if self._multiline_check(self.text):
+            lines = self._multiline_split(self.text)
+            lines_info = self._multiline_coord()
+            
+            for idx, textline in enumerate(lines):
+                xy = lines_info['xy'][idx]
+                data, image = self.draw_words_text(image, textline, xy, line=idx, draw_wordbbox=draw_wordbbox, draw_charbbox=draw_charbbox)
+                datas = datas + data
+        else:
+            data, image = self.draw_words_text(image, self.text, self.xy, draw_wordbbox=draw_wordbbox, draw_charbbox=draw_charbbox)
+            datas = data
+            
+        if draw_bbox: image = self.draw_bbox(image)
+
+        textbox = models.TextBox(text=self.text, bbox=self.custom_bbox(), words=datas)
+            
+        return textbox, image
+    
+    def draw(self, draw_bbox=False, draw_wordbbox=False, draw_charbbox=False):
+        textbox, image = self.draw_text(draw_wordbbox=draw_wordbbox, draw_charbbox=draw_charbbox)
+        if draw_bbox:
+            image = self.draw_bbox(image)
+        return textbox, image
+    
+    def textbox(self):
+        datas = []
+        if self._multiline_check(self.text):
+            lines = self._multiline_split(self.text)
+            lines_info = self._multiline_coord()
+            
+            for idx, textline in enumerate(lines):
+                xy = lines_info['xy'][idx]
+                data= self.draw_words_bbox(textline, xy, line=idx)
+                datas = datas + data
+        else:
+            data = self.draw_words_bbox(self.text, self.xy)
+            datas = data
+
+        textbox = models.TextBox(text=self.text, bbox=self.custom_bbox(), words=datas)
+            
+        return textbox
+    
+    
+    
+   
