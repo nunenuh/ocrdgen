@@ -1,0 +1,63 @@
+template:
+  type: freetext
+  name: example_freetext1
+
+default_setting:
+  image:
+    type: random # random or fixed
+    root: '/data/background/' # root directory of images
+    filenames: None
+    size: [1280, 720]
+    mode: 
+      resize: true
+      crop: true
+    margin:
+      type: pixel # pixel or percent
+      value:
+        top: 10
+        bottom: 10
+        right: 10
+        left: 10
+  font:
+    type: fixed # random or fixed
+    root: '' # root directory for font dir
+    filenames: ['arial.ttf'] # list of choosed font
+    size: 15 # size can be int for fixed or list for range
+    encoding: ""
+    variant: null
+
+  text:
+    align: left
+    spacing: 4
+    fill: None
+    stroke_width: 0
+    stroke_fill: None
+    anchor: None
+
+
+text_objects:
+  text_object1:
+    position:
+      type: random # random or fixed
+      value:
+        xy: [100, 10]
+        size: [10, 10]
+    font:
+      type: fixed
+      root: ''
+      filenames: ['arial.ttf'] # if fixed 
+      size: 15 # size can be int for fixed or list for range
+      encoding: ""
+      variant: None
+    text:
+      align: left
+      spacing: 4
+      fill: None
+      stroke_width: 0
+      stroke_fill: None
+      anchor: None
+
+
+
+        
+
