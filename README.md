@@ -53,7 +53,7 @@ Synthetic Text Data Generator for Text Localization (with char level localizatio
 [contributors-shield]: https://img.shields.io/github/contributors/nunenuh/ocrdgen?style=for-the-badge&logo=appveyor
 [contributors-url]: https://github.com/nunenuh/ocrdgen/graphs/contributors
 
-[forks-shield]: https://img.shields.io/github/contributors/nunenuh/ocrdgen?style=for-the-badge
+[forks-shield]: https://img.shields.io/github/forks/nunenuh/ocrdgen?style=for-the-badge
 [forks-url]: https://github.com/nunenuh/ocrdgen/network/members
 
 [stars-shield]: https://img.shields.io/github/stars/nunenuh/ocrdgen?style=for-the-badge
