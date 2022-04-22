@@ -124,7 +124,8 @@ class BaseDrawer:
         word_list = [txt.strip() for txt in text.split(delimiter) if len(txt.strip())> 0]
         return word_list
     
-    def _multiline_coord(self):
+    def _multiline_coord(self, text=None):
+        if text==None: text = self.text
         
         if self.direction == "ttb":
             raise ValueError("ttb direction is unsupported for multiline text")
@@ -138,7 +139,7 @@ class BaseDrawer:
         
         widths = []
         max_width = 0
-        lines = self._multiline_split(self.text)
+        lines = self._multiline_split(text)
         line_spacing = (
             self.idraw.textsize("A", font=self.font, stroke_width=self.stroke_width)[1] + self.spacing
         )
@@ -184,14 +185,17 @@ class BaseDrawer:
             
             top += line_spacing
         
+
+        
         return {
             'xy': lines_xy,
             'width': widths,
             'max_width': int(max_width),
+            'max_height': int(top),
             'line_spacing': line_spacing,
         }
         
-    def textwrap(self, text, max_width=0, max_height=0):
+    def textwrap(self, text, max_width=0, max_height=0, placeholders="..."):
         mw, mh = self._safe_max_size()
         if max_width == 0 : max_width = mw
         if max_height == 0: max_height = mh
@@ -199,6 +203,20 @@ class BaseDrawer:
         mean = self._mean_char_length()
         line_width = max_width/mean
         lines = wrap(text, width=line_width)
+        
+        string_line = "\n".join(lines)
+        coord = self._multiline_coord(string_line)
+        line_spacing = coord['line_spacing']
+        
+        cleaned_lines = []
+        for idx, (line, xy) in enumerate(zip(lines, coord['xy'])):
+            if xy[1]+line_spacing<=max_height:
+                cleaned_lines.append(line)
+            else:
+                cleaned_lines[len(cleaned_lines)-1] = cleaned_lines[len(cleaned_lines)-1] + placeholders
+                break
+        lines=cleaned_lines
+            
         return lines
     
     
