@@ -13,6 +13,8 @@
 [![Issues][issues-shield]][issues-url]
 [![MIT License][license-shield]][license-url]
 [![LinkedIn][linkedin-shield]][linkedin-url]
+[![Twitter][twitter-shield]][twitter-url]
+
 
 
 ## Description
@@ -67,5 +69,9 @@ Synthetic Text Data Generator for Text Localization (with char level localizatio
 
 [linkedin-shield]: https://img.shields.io/badge/-LinkedIn-black.svg?style=for-the-badge&logo=linkedin&colorB=555
 [linkedin-url]: https://linkedin.com/in/nunenuh
+
+
+[twitter-shield] : 	https://img.shields.io/badge/twitter/url?url=https%3A%2F%2Fshields.io
+[twitter-url]: https://twitter.com/nunenuh
 
 [product-screenshot]: images/screenshot.png
