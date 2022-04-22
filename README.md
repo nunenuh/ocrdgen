@@ -70,8 +70,7 @@ Synthetic Text Data Generator for Text Localization (with char level localizatio
 [linkedin-shield]: https://img.shields.io/badge/-LinkedIn-black.svg?style=for-the-badge&logo=linkedin&colorB=555
 [linkedin-url]: https://linkedin.com/in/nunenuh
 
-
-[twitter-shield]: https://img.shields.io/badge/twitter/url?url=https%3A%2F%2Fshields.io
+[twitter-shield]: https://img.shields.io/twitter/url?color=white&label=Tweet&logo=twitter&style=for-the-badge&url=https%3A%2F%2Ftwitter.com%2Fnunenuh
 [twitter-url]: https://twitter.com/nunenuh
 
 [product-screenshot]: images/screenshot.png
