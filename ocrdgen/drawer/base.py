@@ -10,7 +10,9 @@ import cv2 as cv
 from collections import OrderedDict
 from abc import ABC, abstractmethod
 from PIL.ImageFont import FreeTypeFont
-
+import string
+import textwrap
+from textwrap import wrap
 
 class BaseDrawer:
     def __init__(self, image: Image, font: FreeTypeFont, text: str, xy: tuple,
@@ -37,8 +39,6 @@ class BaseDrawer:
 
         self.idraw = ImageDraw.Draw(self.image)
 
-        
-        
     @abstractmethod
     def draw_text(self):
         pass
@@ -190,4 +190,30 @@ class BaseDrawer:
             'max_width': int(max_width),
             'line_spacing': line_spacing,
         }
+        
+    def textwrap(self, text, max_width=0, max_height=0):
+        mw, mh = self._safe_max_size()
+        if max_width == 0 : max_width = mw
+        if max_height == 0: max_height = mh
+        
+        mean = self._mean_char_length()
+        line_width = max_width/mean
+        lines = wrap(text, width=line_width)
+        return lines
+    
+    
+    def _mean_char_length(self):
+        data = [self.idraw.textlength(c, font=self.font) for c in string.ascii_letters]
+        return np.array(data).mean()
+    
+    def _safe_max_size(self, xy=None):
+        imsize = self.image_size()
+        if xy==None:
+            mw = imsize[0] - self.x
+            mh = imsize[1] - self.y
+        else:
+            mw = imsize[0] - xy[0]
+            mh = imsize[1] - xy[1]
+        return mw,mh
+            
         
