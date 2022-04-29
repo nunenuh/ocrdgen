@@ -3,11 +3,17 @@ from typing import *
 from pydantic import BaseModel
 from pydantic.dataclasses import dataclass
 
+class TemplateHeader(BaseModel):
+    name: str
+    type: str
 
 class GeneralImageSetting(BaseModel):
     type: str
     root: str
-    filenames: List
+    extension: Optional[List[str]] = ['png', 'jpg', 'jpeg']
+    filenames: Optional[Union[List, None]] = None
+    filename: Optional[Union[str, None]] = None
+    files: Optional[List] = []
     size: List
     mode: Dict
     
@@ -21,7 +27,10 @@ class GeneralMarginSetting(BaseModel):
 class GeneralFontSetting(BaseModel):
     type: str
     root: str
-    filenames: List
+    extension: Optional[List[str]] = ['ttf', 'otf']
+    files: Optional[List] = []
+    filenames: Optional[Union[List, None]] = None
+    filename: Optional[Union[str, None]] = None
     size: int
     encoding: Optional[Union[str, None]] = None
     variant: Optional[Union[str, None]] = None
@@ -48,7 +57,7 @@ class Position(BaseModel):
     height: Optional[Union[int, None]] = None
     
 class FontSetting(BaseModel):
-    name: str
+    filename: str
     size: int
     path: Optional[Union[str, None]] = None
 
@@ -63,9 +72,10 @@ class TextSetting(BaseModel):
 class TextObject(BaseModel):
     type: str = "text"
     name: str
+    text: str
     position: Position
-    font: Optional[Union[FontSetting, None]] = None
-    text: Optional[Union[FontSetting, None]] = None
+    font_setting: Optional[Union[FontSetting, None]] = None
+    text_setting: Optional[Union[TextSetting, None]] = None
     
 class FormTextObject(TextObject):
     label: str
